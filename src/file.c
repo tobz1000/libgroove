@@ -105,7 +105,7 @@ int groove_file_open_custom(struct GrooveFile *file, struct GrooveCustomIo *cust
         groove_file_close(file);
         return GrooveErrorNoMem;
     }
-    file->filename = f->ic->filename;
+    file->filename = f->ic->url;
     f->ic->interrupt_callback.callback = decode_interrupt_cb;
     f->ic->interrupt_callback.opaque = f;
 
@@ -325,7 +325,7 @@ static void cleanup_save(struct GrooveFile *file) {
 
     av_packet_unref(&f->audio_pkt);
     if (f->tempfile_exists) {
-        remove(f->oc->filename);
+        remove(f->oc->url);
         f->tempfile_exists = 0;
     }
     if (f->oc) {
@@ -339,7 +339,7 @@ int groove_file_save_as(struct GrooveFile *file, const char *filename) {
     struct GrooveFilePrivate *f = (struct GrooveFilePrivate *) file;
 
     // detect output format
-    AVOutputFormat *ofmt = av_guess_format(f->ic->iformat->name, f->ic->filename, NULL);
+    AVOutputFormat *ofmt = av_guess_format(f->ic->iformat->name, f->ic->url, NULL);
     if (!ofmt) {
         return GrooveErrorUnknownFormat;
     }
@@ -352,11 +352,16 @@ int groove_file_save_as(struct GrooveFile *file, const char *filename) {
     }
 
     f->oc->oformat = ofmt;
-    snprintf(f->oc->filename, sizeof(f->oc->filename), "%s", filename);
+
+    f->oc->url = strdup(filename);
+    if (!f->oc->url) {
+        cleanup_save(file);
+        return GrooveErrorNoMem;
+    }
 
     // open output file if needed
     if (!(ofmt->flags & AVFMT_NOFILE)) {
-        if (avio_open(&f->oc->pb, f->oc->filename, AVIO_FLAG_WRITE) < 0) {
+        if (avio_open(&f->oc->pb, f->oc->url, AVIO_FLAG_WRITE) < 0) {
             cleanup_save(file);
             return GrooveErrorFileSystem;
         }
@@ -491,7 +496,7 @@ int groove_file_save(struct GrooveFile *file) {
 
     int temp_filename_len;
     char *temp_filename = groove_create_rand_name(f->groove,
-            &temp_filename_len, f->ic->filename, strlen(f->ic->filename));
+            &temp_filename_len, f->ic->url, strlen(f->ic->url));
 
     if (!temp_filename) {
         cleanup_save(file);
@@ -504,7 +509,7 @@ int groove_file_save(struct GrooveFile *file) {
         return err;
     }
 
-    if (rename(temp_filename, f->ic->filename)) {
+    if (rename(temp_filename, f->ic->url)) {
         f->tempfile_exists = 1;
         cleanup_save(file);
         return GrooveErrorFileSystem;
