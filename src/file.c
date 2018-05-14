@@ -285,11 +285,11 @@ double groove_file_duration(struct GrooveFile *file) {
 void groove_file_audio_format(struct GrooveFile *file, struct GrooveAudioFormat *audio_format) {
     struct GrooveFilePrivate *f = (struct GrooveFilePrivate *) file;
 
-    AVCodecContext *codec_ctx = f->audio_st->codec;
-    audio_format->sample_rate = codec_ctx->sample_rate;
-    from_ffmpeg_layout(codec_ctx->channel_layout, &audio_format->layout);
-    audio_format->format = from_ffmpeg_format(codec_ctx->sample_fmt);
-    audio_format->is_planar = from_ffmpeg_format_planar(codec_ctx->sample_fmt);
+    AVCodecParameters *codecpar = f->audio_st->codecpar;
+    audio_format->sample_rate = codecpar->sample_rate;
+    from_ffmpeg_layout(codecpar->channel_layout, &audio_format->layout);
+    audio_format->format = from_ffmpeg_format(codecpar->format);
+    audio_format->is_planar = from_ffmpeg_format_planar(codecpar->format);
 }
 
 struct GrooveTag *groove_file_metadata_get(struct GrooveFile *file, const char *key,
